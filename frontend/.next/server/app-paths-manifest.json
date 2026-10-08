@@ -1,0 +1,8 @@
+{
+  "/settings/page": "app/settings/page.js",
+  "/candidates/new/page": "app/candidates/new/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/page": "app/page.js",
+  "/employees/page": "app/employees/page.js",
+  "/candidates/page": "app/candidates/page.js"
+}

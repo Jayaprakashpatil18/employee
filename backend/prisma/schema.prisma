@@ -1,0 +1,402 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum UserRole {
+  HR_ADMIN
+  HR_MANAGER
+  IT
+  FINANCE
+  ADMINISTRATION
+  REPORTING_MANAGER
+  EMPLOYEE
+}
+
+enum CandidateStatus {
+  ACTIVE
+  SELECTED
+  REJECTED
+  CONVERTED
+}
+
+enum OnboardingStatus {
+  READY
+  PARTIALLY_READY
+  DELAYED
+  BLOCKED
+}
+
+enum DocumentSubmissionStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+}
+
+enum DocumentVerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  RESUBMISSION_REQUIRED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+  OVERDUE
+}
+
+enum AssetStatus {
+  REQUESTED
+  IN_PREPARATION
+  READY
+  ASSIGNED
+  BLOCKED
+}
+
+enum VerificationStatus {
+  REQUESTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum VerificationResult {
+  CLEAR
+  FAILED
+  NEEDS_REVIEW
+}
+
+// ==========================================
+// MODELS
+// ==========================================
+
+model User {
+  id                      String           @id @default(uuid())
+  clerkUserId             String           @unique
+  email                   String           @unique
+  name                    String
+  role                    UserRole         @default(EMPLOYEE)
+  department              String?
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  // Relations
+  employee                Employee?
+  candidatesCreated       Candidate[]      @relation("CandidateCreatedBy")
+  assignedDepartmentTasks DepartmentTask[] @relation("AssignedDepartmentTasks")
+  completedChecklistItems JoiningChecklistItem[] @relation("ChecklistCompletedBy")
+  notifications           Notification[]
+  notificationPreference  NotificationPreference?
+  auditLogs               AuditLog[]
+}
+
+model Candidate {
+  id                  String          @id @default(uuid())
+  firstName           String
+  lastName            String
+  email               String          @unique
+  phone               String?
+  department          String
+  designation         String
+  location            String          @default("Remote")
+  employmentType      String          @default("Full Time")
+  expectedJoiningDate DateTime
+  status              CandidateStatus @default(ACTIVE)
+  createdById         String?
+  createdBy           User?           @relation("CandidateCreatedBy", fields: [createdById], references: [id])
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  // Relation to Employee upon conversion
+  employee            Employee?
+}
+
+model Employee {
+  id               String           @id @default(uuid())
+  candidateId      String?          @unique
+  candidate        Candidate?       @relation(fields: [candidateId], references: [id])
+  userId           String?          @unique
+  user             User?            @relation(fields: [userId], references: [id])
+  employeeId       String           @unique
+  firstName        String
+  lastName         String
+  email            String           @unique
+  phone            String?
+  department       String
+  designation      String
+  location         String
+  employmentType   String           @default("Full Time")
+  joiningDate      DateTime
+  onboardingStatus OnboardingStatus @default(READY)
+  onboardingPlanId String?
+  onboardingPlan   OnboardingPlan?  @relation(fields: [onboardingPlanId], references: [id])
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  documents     EmployeeDocument[]
+  verifications BackgroundVerification[]
+  tasks         DepartmentTask[]
+  assets        EmployeeAsset[]
+  checklist     JoiningChecklistItem[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@index([joiningDate])
+  @@index([department])
+  @@index([location])
+  @@index([onboardingStatus])
+}
+
+model OnboardingPlan {
+  id                  String                   @id @default(uuid())
+  title               String
+  description         String?
+  department          String
+  designation         String?
+  location            String?
+  employmentType      String?
+  isActive            Boolean                  @default(true)
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  // Relations
+  documentRequirements PlanDocumentRequirement[]
+  taskRequirements     PlanTask[]
+  assetRequirements    PlanAssetRequirement[]
+  checklistRequirements PlanChecklistItemRequirement[]
+  employees            Employee[]
+}
+
+model PlanDocumentRequirement {
+  id                   String         @id @default(uuid())
+  planId               String
+  plan                 OnboardingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  documentType         String
+  isRequired           Boolean        @default(true)
+  verificationRequired Boolean        @default(true)
+  description          String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+}
+
+model PlanTask {
+  id                 String         @id @default(uuid())
+  planId             String
+  plan               OnboardingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  title              String
+  description        String?
+  assignedDepartment String
+  defaultAssigneeRole UserRole?      @default(IT)
+  isMandatory        Boolean        @default(true)
+  dueDaysFromJoining Int            @default(0)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+}
+
+model PlanAssetRequirement {
+  id          String         @id @default(uuid())
+  planId      String
+  plan        OnboardingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  assetType   String
+  isMandatory Boolean        @default(true)
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model PlanChecklistItemRequirement {
+  id          String         @id @default(uuid())
+  planId      String
+  plan        OnboardingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  title       String
+  category    String         @default("GENERAL")
+  isMandatory Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model EmployeeDocument {
+  id                 String                     @id @default(uuid())
+  employeeId         String
+  employee           Employee                   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  documentType       String
+  documentName       String
+  fileUrl            String?
+  fileKey            String?
+  fileSize           Int?
+  mimeType           String?
+  isRequired         Boolean                    @default(true)
+  submissionStatus   DocumentSubmissionStatus   @default(NOT_SUBMITTED)
+  verificationStatus DocumentVerificationStatus @default(PENDING)
+  submittedAt        DateTime?
+  rejectionReason    String?
+  remarks            String?
+  verifiedAt         DateTime?
+  verifiedById       String?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@index([verificationStatus])
+}
+
+model BackgroundVerification {
+  id               String             @id @default(uuid())
+  employeeId       String
+  employee         Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  verificationType String
+  agencyName       String?
+  isMandatory      Boolean            @default(true)
+  status           VerificationStatus @default(REQUESTED)
+  result           VerificationResult?
+  notes            String?
+  remarks          String?
+  completedAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([status])
+}
+
+model DepartmentTask {
+  id                 String     @id @default(uuid())
+  employeeId         String
+  employee           Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  title              String
+  description        String?
+  assignedDepartment String
+  assignedUserId     String?
+  assignedUser       User?      @relation("AssignedDepartmentTasks", fields: [assignedUserId], references: [id])
+  status             TaskStatus @default(TODO)
+  priority           String     @default("MEDIUM")
+  isMandatory        Boolean    @default(true)
+  dueDate            DateTime?
+  completedAt        DateTime?
+  completionRemarks  String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([status])
+  @@index([dueDate])
+}
+
+model EmployeeAsset {
+  id              String      @id @default(uuid())
+  employeeId      String
+  employee        Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  assetName       String
+  assetType       String
+  serialNumber    String?
+  assetIdentifier String?
+  isMandatory     Boolean     @default(true)
+  status          AssetStatus @default(REQUESTED)
+  preparedAt      DateTime?
+  assignedAt      DateTime?
+  remarks         String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model JoiningChecklistItem {
+  id            String    @id @default(uuid())
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  title         String    @default("")
+  item          String
+  category      String    @default("GENERAL")
+  isMandatory   Boolean   @default(true)
+  isCompleted   Boolean   @default(false)
+  completedAt   DateTime?
+  completedById String?
+  completedBy   User?     @relation("ChecklistCompletedBy", fields: [completedById], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Notification {
+  id                String    @id @default(uuid())
+  recipientUserId   String?
+  userId            String?
+  user              User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId        String?
+  employee          Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  candidateId       String?
+  type              String    @default("INFO")
+  channel           String    @default("IN_APP")
+  title             String
+  message           String
+  relatedEntityType String?
+  relatedEntityId   String?
+  priority          String    @default("MEDIUM")
+  status            String    @default("SENT")
+  isRead            Boolean   @default(false)
+  readAt            DateTime?
+  sentAt            DateTime?
+  failedAt          DateTime?
+  failureReason     String?
+  scheduledFor      DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([recipientUserId])
+  @@index([userId])
+  @@index([employeeId])
+  @@index([status])
+  @@index([isRead])
+  @@index([type])
+  @@index([scheduledFor])
+  @@index([createdAt])
+}
+
+model NotificationPreference {
+  id                        String   @id @default(uuid())
+  userId                    String   @unique
+  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailNotificationsEnabled Boolean  @default(true)
+  inAppNotificationsEnabled Boolean  @default(true)
+  documentNotifications     Boolean  @default(true)
+  verificationNotifications Boolean  @default(true)
+  taskNotifications         Boolean  @default(true)
+  assetNotifications        Boolean  @default(true)
+  joiningReminders          Boolean  @default(true)
+  overdueEscalations        Boolean  @default(true)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  employeeId  String?
+  employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  actorRole   String?
+  action      String
+  entity      String
+  entityType  String?
+  entityId    String?
+  description String?
+  oldValue    String?
+  newValue    String?
+  details     String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([employeeId])
+  @@index([action])
+  @@index([entityType])
+  @@index([createdAt])
+}

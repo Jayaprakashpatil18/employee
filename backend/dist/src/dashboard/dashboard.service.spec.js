@@ -1,0 +1,86 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const dashboard_service_1 = require("./dashboard.service");
+const prisma_service_1 = require("../prisma/prisma.service");
+const readiness_service_1 = require("../readiness/readiness.service");
+const client_1 = require("@prisma/client");
+describe('DashboardService', () => {
+    let service;
+    let mockPrisma;
+    let mockReadinessService;
+    const mockEmployeeA = {
+        id: 'emp-1',
+        employeeId: 'EMP-2026-0001',
+        firstName: 'Alex',
+        lastName: 'Turner',
+        department: 'Engineering',
+        location: 'Bengaluru',
+        joiningDate: new Date(),
+        onboardingStatus: client_1.OnboardingStatus.READY,
+        documents: [{ isRequired: true, verificationStatus: 'VERIFIED' }],
+        verifications: [{ isMandatory: true, status: 'COMPLETED', result: 'CLEAR' }],
+        tasks: [{ isMandatory: true, status: 'COMPLETED' }],
+        assets: [{ isMandatory: true, status: 'READY' }],
+        checklist: [{ isMandatory: true, isCompleted: true }],
+    };
+    const mockEmployeeB = {
+        id: 'emp-2',
+        employeeId: 'EMP-2026-0002',
+        firstName: 'David',
+        lastName: 'Blocked',
+        department: 'Engineering',
+        location: 'Bengaluru',
+        joiningDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        onboardingStatus: client_1.OnboardingStatus.BLOCKED,
+        documents: [],
+        verifications: [{ isMandatory: true, status: 'COMPLETED', result: 'FAILED', remarks: 'Discrepancy' }],
+        tasks: [],
+        assets: [],
+        checklist: [],
+    };
+    beforeEach(async () => {
+        mockPrisma = {
+            employee: {
+                findMany: jest.fn().mockResolvedValue([mockEmployeeA, mockEmployeeB]),
+            },
+        };
+        mockReadinessService = {
+            evaluateReadiness: jest.fn().mockResolvedValue({ status: 'READY' }),
+        };
+        const module = await testing_1.Test.createTestingModule({
+            providers: [
+                dashboard_service_1.DashboardService,
+                { provide: prisma_service_1.PrismaService, useValue: mockPrisma },
+                { provide: readiness_service_1.OnboardingReadinessService, useValue: mockReadinessService },
+            ],
+        }).compile();
+        service = module.get(dashboard_service_1.DashboardService);
+    });
+    describe('Summary & Analytics', () => {
+        it('should aggregate top-level KPI counts from evaluated employees', async () => {
+            const summary = await service.getSummary();
+            expect(summary.upcomingJoiners).toBe(2);
+            expect(summary.ready).toBe(1);
+            expect(summary.blocked).toBe(1);
+        });
+        it('should calculate readiness distribution analytics', async () => {
+            const analytics = await service.getAnalytics();
+            expect(analytics.readinessDistribution).toHaveLength(4);
+            expect(analytics.departmentOverview.length).toBeGreaterThan(0);
+        });
+    });
+    describe('Attention Required & Urgency Calculation', () => {
+        it('should return BLOCKED employees in attention required section', async () => {
+            const attentionList = await service.getAttentionRequired();
+            expect(attentionList.length).toBeGreaterThan(0);
+            expect(attentionList[0].status).toBe(client_1.OnboardingStatus.BLOCKED);
+        });
+        it('should calculate dynamic joining date urgency labels', async () => {
+            const joiners = await service.getUpcomingJoiners();
+            expect(joiners[0].joiningUrgency).toBe('Joining Today');
+            expect(joiners[1].joiningUrgency).toBe('In 3 Days');
+        });
+    });
+});
+//# sourceMappingURL=dashboard.service.spec.js.map

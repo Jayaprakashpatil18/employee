@@ -1,0 +1,276 @@
+import { PrismaService } from '../prisma/prisma.service';
+import { OnboardingPlanMatchingService } from '../onboarding-plans/onboarding-plan-matching.service';
+import { CandidateStatus } from '@prisma/client';
+export interface CreateCandidateDto {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    designation: string;
+    department: string;
+    location: string;
+    employmentType: string;
+    expectedJoiningDate: Date | string;
+    status?: CandidateStatus;
+}
+export interface QueryCandidatesDto {
+    search?: string;
+    status?: CandidateStatus;
+    department?: string;
+    location?: string;
+    employmentType?: string;
+}
+import { NotificationsService } from '../notifications/notifications.service';
+export declare class CandidatesService {
+    private readonly prisma;
+    private readonly matchingService;
+    private readonly notificationsService;
+    constructor(prisma: PrismaService, matchingService: OnboardingPlanMatchingService, notificationsService: NotificationsService);
+    create(dto: CreateCandidateDto, currentUserId?: string): Promise<{
+        id: string;
+        email: string;
+        department: string;
+        createdAt: Date;
+        updatedAt: Date;
+        designation: string;
+        location: string;
+        employmentType: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        expectedJoiningDate: Date;
+        status: import(".prisma/client").$Enums.CandidateStatus;
+        createdById: string | null;
+    }>;
+    findAll(query?: QueryCandidatesDto): Promise<({
+        employee: {
+            id: string;
+            email: string;
+            department: string;
+            createdAt: Date;
+            updatedAt: Date;
+            designation: string;
+            location: string;
+            employmentType: string;
+            firstName: string;
+            lastName: string;
+            phone: string | null;
+            employeeId: string;
+            joiningDate: Date;
+            onboardingStatus: import(".prisma/client").$Enums.OnboardingStatus;
+            candidateId: string | null;
+            userId: string | null;
+            onboardingPlanId: string | null;
+        };
+        createdBy: {
+            id: string;
+            clerkUserId: string;
+            email: string;
+            name: string;
+            role: import(".prisma/client").$Enums.UserRole;
+            department: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+        };
+    } & {
+        id: string;
+        email: string;
+        department: string;
+        createdAt: Date;
+        updatedAt: Date;
+        designation: string;
+        location: string;
+        employmentType: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        expectedJoiningDate: Date;
+        status: import(".prisma/client").$Enums.CandidateStatus;
+        createdById: string | null;
+    })[]>;
+    findOne(id: string): Promise<{
+        employee: {
+            onboardingPlan: {
+                id: string;
+                department: string;
+                createdAt: Date;
+                updatedAt: Date;
+                title: string;
+                description: string | null;
+                designation: string | null;
+                location: string | null;
+                employmentType: string | null;
+                isActive: boolean;
+            };
+            documents: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                documentType: string;
+                isRequired: boolean;
+                employeeId: string;
+                documentName: string;
+                fileUrl: string | null;
+                fileKey: string | null;
+                fileSize: number | null;
+                mimeType: string | null;
+                submissionStatus: import(".prisma/client").$Enums.DocumentSubmissionStatus;
+                verificationStatus: import(".prisma/client").$Enums.DocumentVerificationStatus;
+                submittedAt: Date | null;
+                rejectionReason: string | null;
+                remarks: string | null;
+                verifiedAt: Date | null;
+                verifiedById: string | null;
+            }[];
+            verifications: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                result: import(".prisma/client").$Enums.VerificationResult | null;
+                isMandatory: boolean;
+                status: import(".prisma/client").$Enums.VerificationStatus;
+                employeeId: string;
+                remarks: string | null;
+                verificationType: string;
+                agencyName: string | null;
+                notes: string | null;
+                completedAt: Date | null;
+            }[];
+            tasks: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                title: string;
+                description: string | null;
+                assignedDepartment: string;
+                isMandatory: boolean;
+                status: import(".prisma/client").$Enums.TaskStatus;
+                employeeId: string;
+                completedAt: Date | null;
+                priority: string;
+                dueDate: Date | null;
+                completionRemarks: string | null;
+                assignedUserId: string | null;
+            }[];
+            assets: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                isMandatory: boolean;
+                assetType: string;
+                status: import(".prisma/client").$Enums.AssetStatus;
+                employeeId: string;
+                remarks: string | null;
+                assetName: string;
+                serialNumber: string | null;
+                assetIdentifier: string | null;
+                preparedAt: Date | null;
+                assignedAt: Date | null;
+            }[];
+            checklist: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                title: string;
+                isMandatory: boolean;
+                category: string;
+                employeeId: string;
+                completedAt: Date | null;
+                item: string;
+                isCompleted: boolean;
+                completedById: string | null;
+            }[];
+        } & {
+            id: string;
+            email: string;
+            department: string;
+            createdAt: Date;
+            updatedAt: Date;
+            designation: string;
+            location: string;
+            employmentType: string;
+            firstName: string;
+            lastName: string;
+            phone: string | null;
+            employeeId: string;
+            joiningDate: Date;
+            onboardingStatus: import(".prisma/client").$Enums.OnboardingStatus;
+            candidateId: string | null;
+            userId: string | null;
+            onboardingPlanId: string | null;
+        };
+        createdBy: {
+            id: string;
+            clerkUserId: string;
+            email: string;
+            name: string;
+            role: import(".prisma/client").$Enums.UserRole;
+            department: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+        };
+    } & {
+        id: string;
+        email: string;
+        department: string;
+        createdAt: Date;
+        updatedAt: Date;
+        designation: string;
+        location: string;
+        employmentType: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        expectedJoiningDate: Date;
+        status: import(".prisma/client").$Enums.CandidateStatus;
+        createdById: string | null;
+    }>;
+    update(id: string, dto: Partial<CreateCandidateDto>, currentUserId?: string): Promise<{
+        id: string;
+        email: string;
+        department: string;
+        createdAt: Date;
+        updatedAt: Date;
+        designation: string;
+        location: string;
+        employmentType: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        expectedJoiningDate: Date;
+        status: import(".prisma/client").$Enums.CandidateStatus;
+        createdById: string | null;
+    }>;
+    convertCandidateToEmployee(candidateId: string, currentUserId?: string): Promise<{
+        success: boolean;
+        message: string;
+        employeeCode: string;
+        employee: {
+            id: string;
+            email: string;
+            department: string;
+            createdAt: Date;
+            updatedAt: Date;
+            designation: string;
+            location: string;
+            employmentType: string;
+            firstName: string;
+            lastName: string;
+            phone: string | null;
+            employeeId: string;
+            joiningDate: Date;
+            onboardingStatus: import(".prisma/client").$Enums.OnboardingStatus;
+            candidateId: string | null;
+            userId: string | null;
+            onboardingPlanId: string | null;
+        };
+        onboardingPlan: import("../onboarding-plans/onboarding-plan-matching.service").FullOnboardingPlan;
+        requirementsGenerated: {
+            documentsCount: number;
+            verificationsCount: number;
+            tasksCount: number;
+            assetsCount: number;
+            checklistCount: number;
+        };
+    }>;
+}
